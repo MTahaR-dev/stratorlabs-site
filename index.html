@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Strator Labs</title>
+<meta name="description" content="Strator Labs — building what comes next." />
+<style>
+  :root {
+    --metal-light: #f4f4f6;
+    --metal-mid:   #b9bbc0;
+    --metal-dark:  #6d7077;
+    --red:         #ff1a1a;
+    --red-glow:    #ff3b3b;
+    --bg:          #050505;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: auto; }
+
+  body {
+    background: radial-gradient(ellipse at center, #0d0d0d 0%, #030303 70%, #000 100%);
+    color: #fff;
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    overflow-x: hidden;
+  }
+
+  /* The tall scroll track that drives the animation */
+  #scroll-track { height: 360vh; position: relative; }
+
+  /* The pinned stage that holds everything visible */
+  #stage {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  /* --- The wordmark --- */
+  #wordmark {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  .word {
+    font-size: clamp(2.6rem, 11vw, 9.5rem);
+    background: linear-gradient(180deg,
+      var(--metal-light) 0%,
+      #ffffff 18%,
+      var(--metal-mid) 50%,
+      var(--metal-dark) 78%,
+      #2c2d31 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.08);
+    line-height: 1;
+    will-change: transform, opacity;
+  }
+
+  /* The red O — its own element so it can scale independently */
+  #the-o {
+    position: relative;
+    display: inline-block;
+    width: clamp(2.2rem, 9.3vw, 8rem);
+    height: clamp(2.2rem, 9.3vw, 8rem);
+    margin: 0 0.04em;
+    border-radius: 50%;
+    will-change: transform, opacity;
+    transform-origin: center center;
+    z-index: 5;
+  }
+  #the-o::before {
+    /* the ring */
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at center,
+        transparent 0%,
+        transparent 46%,
+        var(--red) 50%,
+        var(--red-glow) 62%,
+        #b00 90%,
+        #600 100%);
+    box-shadow:
+      0 0 18px 4px rgba(255,40,40,0.6),
+      0 0 60px 14px rgba(255,30,30,0.3),
+      inset 0 0 22px 4px rgba(255,80,80,0.4);
+  }
+  #the-o::after {
+    /* small notch detail like the logo */
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -2%;
+    width: 8%;
+    height: 30%;
+    background: var(--bg);
+    transform: translateX(-50%);
+  }
+
+  /* --- The revealed content --- */
+  #content {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    opacity: 0;
+    pointer-events: none;
+    will-change: opacity, transform;
+    padding: 1.5rem;
+    z-index: 45;
+  }
+
+  #content h1 {
+    font-size: clamp(2.4rem, 9vw, 6rem);
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    background: linear-gradient(180deg, #ffffff 0%, var(--metal-mid) 60%, var(--metal-dark) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  #content .accent {
+    color: var(--red);
+    -webkit-text-fill-color: var(--red);
+    text-shadow: 0 0 24px rgba(255,40,40,0.55);
+  }
+
+  #content p.sub {
+    margin-top: 1rem;
+    font-size: clamp(0.85rem, 2.6vw, 1.1rem);
+    letter-spacing: 0.35em;
+    text-transform: uppercase;
+    color: #8a8c92;
+  }
+
+  #content .email {
+    margin-top: 2.4rem;
+    font-size: clamp(0.8rem, 2.4vw, 1rem);
+    letter-spacing: 0.05em;
+  }
+  #content .email a {
+    color: #c9cacf;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(255,40,40,0.5);
+    padding-bottom: 2px;
+    transition: color 0.25s;
+  }
+  #content .email a:hover { color: #fff; }
+  #content .email a {
+    cursor: pointer;
+    pointer-events: auto;
+    position: relative;
+    z-index: 50;
+  }
+
+  /* Copied! toast */
+  #toast {
+    position: absolute;
+    left: 50%;
+    bottom: 22%;
+    transform: translate(-50%, 10px);
+    background: rgba(20,20,22,0.92);
+    border: 1px solid rgba(255,40,40,0.5);
+    color: #fff;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    padding: 8px 18px;
+    border-radius: 6px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 40;
+  }
+  #toast.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+
+  /* --- RGB animated edge border (appears only after the O zoom finishes) --- */
+  #rgb-frame {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 30;
+    opacity: 0;
+    will-change: opacity;
+  }
+  #rgb-frame::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 0;
+    padding: 2px;                 /* thin border thickness */
+    background: conic-gradient(
+      from var(--ang, 0deg),
+      #ff0040, #ff8a00, #ffe600,
+      #38ff5a, #00e5ff, #3a7bff,
+      #c14bff, #ff0040
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    filter: brightness(1.15);
+    animation: spin 6s linear infinite;
+  }
+  @property --ang {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+  @keyframes spin {
+    to { --ang: 360deg; }
+  }
+
+  /* Scroll hint */
+  #hint {
+    position: fixed;
+    bottom: 26px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #6a6c72;
+    font-size: 0.72rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    z-index: 20;
+    transition: opacity 0.4s;
+    will-change: opacity;
+  }
+  #hint .chev {
+    width: 14px; height: 14px;
+    border-right: 2px solid #6a6c72;
+    border-bottom: 2px solid #6a6c72;
+    transform: rotate(45deg);
+    animation: bob 1.6s infinite ease-in-out;
+  }
+  @keyframes bob {
+    0%,100% { transform: rotate(45deg) translate(0,0); opacity: .4; }
+    50%     { transform: rotate(45deg) translate(3px,3px); opacity: 1; }
+  }
+
+  footer {
+    position: fixed;
+    bottom: 14px;
+    width: 100%;
+    text-align: center;
+    font-size: 0.68rem;
+    letter-spacing: 0.18em;
+    color: #44464b;
+    z-index: 35;
+  }
+</style>
+</head>
+<body>
+
+  <div id="scroll-track"></div>
+
+  <div id="stage">
+    <div id="wordmark">
+      <span class="word" id="word-left">Strat</span>
+      <span id="the-o" aria-label="o"></span>
+      <span class="word" id="word-right">rlabs</span>
+    </div>
+
+    <div id="content">
+      <h1>Coming <span class="accent">Soon</span></h1>
+      <p class="sub">Strator&nbsp;Labs</p>
+      <p class="email">Contact: <a href="#" id="copy-email" data-email="taha@stratorlabs.com">taha@stratorlabs.com</a></p>
+    </div>
+
+    <div id="toast">Copied!</div>
+  </div>
+
+  <div id="rgb-frame"></div>
+
+  <div id="hint">
+    <span>Scroll</span>
+    <span class="chev"></span>
+  </div>
+
+  <footer>&copy; 2026 Strator Labs. All rights reserved.</footer>
+
+<script>
+  const track     = document.getElementById('scroll-track');
+  const theO      = document.getElementById('the-o');
+  const wordLeft  = document.getElementById('word-left');
+  const wordRight = document.getElementById('word-right');
+  const content   = document.getElementById('content');
+  const hint      = document.getElementById('hint');
+  const rgbFrame  = document.getElementById('rgb-frame');
+  const copyEmail = document.getElementById('copy-email');
+  const toast     = document.getElementById('toast');
+
+  // click-to-copy email with "Copied!" toast
+  copyEmail.addEventListener('click', (e) => {
+    e.preventDefault();
+    const email = copyEmail.dataset.email;
+    const showToast = () => {
+      toast.classList.add('show');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(email).then(showToast).catch(() => {
+        fallbackCopy(email); showToast();
+      });
+    } else {
+      fallbackCopy(email); showToast();
+    }
+  });
+
+  function fallbackCopy(text){
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch (err) {}
+    document.body.removeChild(ta);
+  }
+
+  // tune these to taste
+  const MAX_SCALE   = 30;    // how big the O grows before it leaves the screen
+  const SPLIT_DIST  = 0.6;   // how far the words slide apart (fraction of half-screen)
+  const FADE_START  = 0.5;   // content begins appearing at 50% scroll
+  const FRAME_START = 0.82;  // RGB border begins appearing near the very end
+
+  function clamp(v, a, b){ return Math.min(b, Math.max(a, v)); }
+
+  function update(){
+    const scrollable = track.offsetHeight - window.innerHeight;
+    const p = scrollable > 0 ? clamp(window.scrollY / scrollable, 0, 1) : 0;
+
+    const halfW = window.innerWidth / 2;
+
+    // words split apart: strat -> left, rlabs -> right
+    const slide = Math.pow(p, 1.2) * halfW * SPLIT_DIST;
+    wordLeft.style.transform  = `translateX(${-slide}px)`;
+    wordRight.style.transform = `translateX(${ slide}px)`;
+
+    // words fade as they leave
+    const wordOpacity = clamp(1 - (p / 0.7), 0, 1);
+    wordLeft.style.opacity  = wordOpacity;
+    wordRight.style.opacity = wordOpacity;
+
+    // O grows through the gap, then fades out right at the end so no harsh glow lingers
+    const scale = 1 + (Math.pow(p, 1.7)) * (MAX_SCALE - 1);
+    theO.style.transform = `scale(${scale})`;
+    // fade the O out over the last stretch so the bright red doesn't sit on screen
+    const oOpacity = p < 0.8 ? 1 : clamp(1 - (p - 0.8) / 0.15, 0, 1);
+    theO.style.opacity = oOpacity;
+
+    // content fades in through the back half
+    let c = 0;
+    if (p > FADE_START){
+      c = clamp((p - FADE_START) / (1 - FADE_START), 0, 1);
+    }
+    content.style.opacity = c;
+    content.style.pointerEvents = c > 0.4 ? 'auto' : 'none';
+    content.style.transform = `scale(${0.92 + c * 0.08})`;
+
+    // RGB edge frame fades in only at the very end, after the O is gone
+    let f = 0;
+    if (p > FRAME_START){
+      f = clamp((p - FRAME_START) / (1 - FRAME_START), 0, 1);
+    }
+    rgbFrame.style.opacity = f;
+
+    // hide scroll hint once we start moving
+    hint.style.opacity = p > 0.04 ? 0 : 1;
+  }
+
+  let ticking = false;
+  window.addEventListener('scroll', () => {
+    if (!ticking){
+      requestAnimationFrame(() => { update(); ticking = false; });
+      ticking = true;
+    }
+  }, { passive: true });
+
+  window.addEventListener('resize', update);
+  window.addEventListener('load', update);
+  update();
+</script>
+</body>
+</html>

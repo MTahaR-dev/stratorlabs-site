@@ -151,9 +151,19 @@
   }
 
   #content .email {
-    margin-top: 2.4rem;
+    margin-top: 1.4rem;
     font-size: clamp(0.8rem, 2.4vw, 1rem);
     letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  #content .email .role {
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    min-width: 3.4em;
+    text-align: right;
   }
   #content .email a {
     color: #c9cacf;
@@ -161,14 +171,12 @@
     border-bottom: 1px solid rgba(255,40,40,0.5);
     padding-bottom: 2px;
     transition: color 0.25s;
-  }
-  #content .email a:hover { color: #fff; }
-  #content .email a {
     cursor: pointer;
     pointer-events: auto;
     position: relative;
     z-index: 50;
   }
+  #content .email a:hover { color: #fff; }
 
   /* Copied! toast */
   #toast {
@@ -287,7 +295,8 @@
     <div id="content">
       <h1>Coming <span class="accent">Soon</span></h1>
       <p class="sub">Strator&nbsp;Labs</p>
-      <p class="email">Contact: <a href="#" id="copy-email" data-email="taha@stratorlabs.com">taha@stratorlabs.com</a></p>
+      <p class="email"><span class="accent role">CEO</span> <a href="#" class="copy-email" data-email="taha@stratorlabs.com">taha@stratorlabs.com</a></p>
+      <p class="email"><span class="accent role">CTO</span> <a href="#" class="copy-email" data-email="tauqeer@stratorlabs.com">tauqeer@stratorlabs.com</a></p>
     </div>
 
     <div id="toast">Copied!</div>
@@ -310,25 +319,26 @@
   const content   = document.getElementById('content');
   const hint      = document.getElementById('hint');
   const rgbFrame  = document.getElementById('rgb-frame');
-  const copyEmail = document.getElementById('copy-email');
   const toast     = document.getElementById('toast');
 
-  // click-to-copy email with "Copied!" toast
-  copyEmail.addEventListener('click', (e) => {
-    e.preventDefault();
-    const email = copyEmail.dataset.email;
-    const showToast = () => {
-      toast.classList.add('show');
-      clearTimeout(window.__toastTimer);
-      window.__toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(email).then(showToast).catch(() => {
+  // click-to-copy email with "Copied!" toast (works for all .copy-email links)
+  document.querySelectorAll('.copy-email').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const email = link.dataset.email;
+      const showToast = () => {
+        toast.classList.add('show');
+        clearTimeout(window.__toastTimer);
+        window.__toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(email).then(showToast).catch(() => {
+          fallbackCopy(email); showToast();
+        });
+      } else {
         fallbackCopy(email); showToast();
-      });
-    } else {
-      fallbackCopy(email); showToast();
-    }
+      }
+    });
   });
 
   function fallbackCopy(text){

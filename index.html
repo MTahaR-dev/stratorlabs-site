@@ -3,285 +3,68 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Strator Labs</title>
-<meta name="description" content="Strator Labs — building what comes next." />
+<title>Strator Labs — Warp Space Demo</title>
 <style>
   :root {
-    --metal-light: #f4f4f6;
-    --metal-mid:   #b9bbc0;
-    --metal-dark:  #6d7077;
-    --red:         #ff1a1a;
-    --red-glow:    #ff3b3b;
-    --bg:          #050505;
+    --metal-light:#f4f4f6; --metal-mid:#b9bbc0; --metal-dark:#6d7077;
+    --red:#ff1a1a; --red-glow:#ff3b3b; --bg:#050505;
   }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html { scroll-behavior:auto; }
+  body { background:#000; color:#fff; font-family:"Segoe UI","Helvetica Neue",Arial,sans-serif; overflow-x:hidden; }
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+  #bg-wrap { position:fixed; inset:0; z-index:0; overflow:hidden; background:#000; }
+  /* calm intro starfield always visible */
+  #stars-calm { position:absolute; inset:0; width:100%; height:100%; }
+  /* the space scene (warp + planets) is one canvas; we clip it to a circle in JS */
+  #space { position:absolute; inset:0; width:100%; height:100%; opacity:0; will-change:opacity; }
+  #vignette { position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.5) 100%); }
 
-  html { scroll-behavior: auto; }
+  #scroll-track { height:360vh; position:relative; z-index:1; }
+  #stage { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; overflow:hidden; z-index:2; }
 
-  body {
-    background: radial-gradient(ellipse at center, #0d0d0d 0%, #030303 70%, #000 100%);
-    color: #fff;
-    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-    overflow-x: hidden;
-  }
+  #wordmark { position:relative; display:flex; align-items:center; justify-content:center; font-weight:800; letter-spacing:-0.02em; user-select:none; white-space:nowrap; }
+  .word { font-size:clamp(2.6rem,11vw,9.5rem);
+    background:linear-gradient(180deg,var(--metal-light) 0%,#fff 18%,var(--metal-mid) 50%,var(--metal-dark) 78%,#2c2d31 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    text-shadow:0 1px 0 rgba(255,255,255,0.08); line-height:1; will-change:transform,opacity; }
+  /* ORIGINAL solid red O — unchanged */
+  #the-o { position:relative; display:inline-block; width:clamp(2.2rem,9.3vw,8rem); height:clamp(2.2rem,9.3vw,8rem); margin:0 0.04em; border-radius:50%; will-change:transform,opacity; transform-origin:center center; z-index:5; }
+  #the-o::before { content:""; position:absolute; inset:0; border-radius:50%;
+    background:radial-gradient(circle at center,transparent 0%,transparent 46%,var(--red) 50%,var(--red-glow) 62%,#b00 90%,#600 100%);
+    box-shadow:0 0 18px 4px rgba(255,40,40,0.6),0 0 60px 14px rgba(255,30,30,0.3),inset 0 0 22px 4px rgba(255,80,80,0.4); }
+  #the-o::after { content:""; position:absolute; left:50%; bottom:-2%; width:8%; height:30%; background:var(--bg); transform:translateX(-50%); }
 
-  /* The tall scroll track that drives the animation */
-  #scroll-track { height: 360vh; position: relative; }
+  #content { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; opacity:0; pointer-events:none; will-change:opacity,transform; padding:1.5rem; z-index:6; }
+  #content-inner { will-change:filter, text-shadow; }
+  #content h1 { font-size:clamp(2.4rem,9vw,6rem); font-weight:800; letter-spacing:0.02em;
+    background:linear-gradient(180deg,#fff 0%,var(--metal-mid) 60%,var(--metal-dark) 100%);
+    -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+  #content .accent { color:var(--red); -webkit-text-fill-color:var(--red); text-shadow:0 0 24px rgba(255,40,40,0.55); }
+  #content p.sub { margin-top:1rem; font-size:clamp(0.85rem,2.6vw,1.1rem); letter-spacing:0.35em; text-transform:uppercase; color:#c4c5cb; }
+  #content .email { margin-top:1.4rem; font-size:clamp(0.8rem,2.4vw,1rem); letter-spacing:0.05em; display:flex; align-items:center; justify-content:center; gap:12px; }
+  #content .email .role { font-weight:800; letter-spacing:0.18em; min-width:3.4em; text-align:right; }
+  #content .email a { color:#dadbe0; text-decoration:none; border-bottom:1px solid rgba(255,40,40,0.5); padding-bottom:2px; transition:color .25s; cursor:pointer; pointer-events:auto; position:relative; z-index:50; }
+  #content .email a:hover { color:#fff; }
 
-  /* The pinned stage that holds everything visible */
-  #stage {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow: hidden;
-  }
+  #toast { position:absolute; left:50%; bottom:22%; transform:translate(-50%,10px); background:rgba(20,20,22,0.92); border:1px solid rgba(255,40,40,0.5); color:#fff; font-size:0.8rem; letter-spacing:0.12em; padding:8px 18px; border-radius:6px; opacity:0; pointer-events:none; transition:opacity .25s ease,transform .25s ease; z-index:40; }
+  #toast.show { opacity:1; transform:translate(-50%,0); }
 
-  /* --- The wordmark --- */
-  #wordmark {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    user-select: none;
-    white-space: nowrap;
-  }
+  #hint { position:fixed; bottom:26px; left:50%; transform:translateX(-50%); color:#8a8c92; font-size:0.72rem; letter-spacing:0.3em; text-transform:uppercase; display:flex; flex-direction:column; align-items:center; gap:8px; z-index:20; transition:opacity .4s; will-change:opacity; }
+  #hint .chev { width:14px; height:14px; border-right:2px solid #8a8c92; border-bottom:2px solid #8a8c92; transform:rotate(45deg); animation:bob 1.6s infinite ease-in-out; }
+  @keyframes bob { 0%,100%{transform:rotate(45deg) translate(0,0);opacity:.4;} 50%{transform:rotate(45deg) translate(3px,3px);opacity:1;} }
 
-  .word {
-    font-size: clamp(2.6rem, 11vw, 9.5rem);
-    background: linear-gradient(180deg,
-      var(--metal-light) 0%,
-      #ffffff 18%,
-      var(--metal-mid) 50%,
-      var(--metal-dark) 78%,
-      #2c2d31 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-shadow: 0 1px 0 rgba(255,255,255,0.08);
-    line-height: 1;
-    will-change: transform, opacity;
-  }
-
-  /* The red O — its own element so it can scale independently */
-  #the-o {
-    position: relative;
-    display: inline-block;
-    width: clamp(2.2rem, 9.3vw, 8rem);
-    height: clamp(2.2rem, 9.3vw, 8rem);
-    margin: 0 0.04em;
-    border-radius: 50%;
-    will-change: transform, opacity;
-    transform-origin: center center;
-    z-index: 5;
-  }
-  #the-o::before {
-    /* the ring */
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 50%;
-    background:
-      radial-gradient(circle at center,
-        transparent 0%,
-        transparent 46%,
-        var(--red) 50%,
-        var(--red-glow) 62%,
-        #b00 90%,
-        #600 100%);
-    box-shadow:
-      0 0 18px 4px rgba(255,40,40,0.6),
-      0 0 60px 14px rgba(255,30,30,0.3),
-      inset 0 0 22px 4px rgba(255,80,80,0.4);
-  }
-  #the-o::after {
-    /* small notch detail like the logo */
-    content: "";
-    position: absolute;
-    left: 50%;
-    bottom: -2%;
-    width: 8%;
-    height: 30%;
-    background: var(--bg);
-    transform: translateX(-50%);
-  }
-
-  /* --- The revealed content --- */
-  #content {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    opacity: 0;
-    pointer-events: none;
-    will-change: opacity, transform;
-    padding: 1.5rem;
-    z-index: 45;
-  }
-
-  #content h1 {
-    font-size: clamp(2.4rem, 9vw, 6rem);
-    font-weight: 800;
-    letter-spacing: 0.02em;
-    background: linear-gradient(180deg, #ffffff 0%, var(--metal-mid) 60%, var(--metal-dark) 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  #content .accent {
-    color: var(--red);
-    -webkit-text-fill-color: var(--red);
-    text-shadow: 0 0 24px rgba(255,40,40,0.55);
-  }
-
-  #content p.sub {
-    margin-top: 1rem;
-    font-size: clamp(0.85rem, 2.6vw, 1.1rem);
-    letter-spacing: 0.35em;
-    text-transform: uppercase;
-    color: #8a8c92;
-  }
-
-  #content .email {
-    margin-top: 1.4rem;
-    font-size: clamp(0.8rem, 2.4vw, 1rem);
-    letter-spacing: 0.05em;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 12px;
-  }
-  #content .email .role {
-    font-weight: 800;
-    letter-spacing: 0.18em;
-    min-width: 3.4em;
-    text-align: right;
-  }
-  #content .email a {
-    color: #c9cacf;
-    text-decoration: none;
-    border-bottom: 1px solid rgba(255,40,40,0.5);
-    padding-bottom: 2px;
-    transition: color 0.25s;
-    cursor: pointer;
-    pointer-events: auto;
-    position: relative;
-    z-index: 50;
-  }
-  #content .email a:hover { color: #fff; }
-
-  /* Copied! toast */
-  #toast {
-    position: absolute;
-    left: 50%;
-    bottom: 22%;
-    transform: translate(-50%, 10px);
-    background: rgba(20,20,22,0.92);
-    border: 1px solid rgba(255,40,40,0.5);
-    color: #fff;
-    font-size: 0.8rem;
-    letter-spacing: 0.12em;
-    padding: 8px 18px;
-    border-radius: 6px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.25s ease, transform 0.25s ease;
-    z-index: 40;
-  }
-  #toast.show {
-    opacity: 1;
-    transform: translate(-50%, 0);
-  }
-
-  /* --- RGB animated edge border (appears only after the O zoom finishes) --- */
-  #rgb-frame {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 30;
-    opacity: 0;
-    will-change: opacity;
-  }
-  #rgb-frame::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: 0;
-    padding: 2px;                 /* thin border thickness */
-    background: conic-gradient(
-      from var(--ang, 0deg),
-      #ff0040, #ff8a00, #ffe600,
-      #38ff5a, #00e5ff, #3a7bff,
-      #c14bff, #ff0040
-    );
-    -webkit-mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-            mask-composite: exclude;
-    filter: brightness(1.15);
-    animation: spin 6s linear infinite;
-  }
-  @property --ang {
-    syntax: '<angle>';
-    initial-value: 0deg;
-    inherits: false;
-  }
-  @keyframes spin {
-    to { --ang: 360deg; }
-  }
-
-  /* Scroll hint */
-  #hint {
-    position: fixed;
-    bottom: 26px;
-    left: 50%;
-    transform: translateX(-50%);
-    color: #6a6c72;
-    font-size: 0.72rem;
-    letter-spacing: 0.3em;
-    text-transform: uppercase;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    z-index: 20;
-    transition: opacity 0.4s;
-    will-change: opacity;
-  }
-  #hint .chev {
-    width: 14px; height: 14px;
-    border-right: 2px solid #6a6c72;
-    border-bottom: 2px solid #6a6c72;
-    transform: rotate(45deg);
-    animation: bob 1.6s infinite ease-in-out;
-  }
-  @keyframes bob {
-    0%,100% { transform: rotate(45deg) translate(0,0); opacity: .4; }
-    50%     { transform: rotate(45deg) translate(3px,3px); opacity: 1; }
-  }
-
-  footer {
-    position: fixed;
-    bottom: 14px;
-    width: 100%;
-    text-align: center;
-    font-size: 0.68rem;
-    letter-spacing: 0.18em;
-    color: #44464b;
-    z-index: 35;
-  }
+  footer { position:fixed; bottom:14px; width:100%; text-align:center; font-size:0.68rem; letter-spacing:0.18em; color:#5a5c61; z-index:35; }
 </style>
 </head>
 <body>
+
+  <div id="bg-wrap">
+    <canvas id="stars-calm"></canvas>
+    <canvas id="space"></canvas>
+    <div id="vignette"></div>
+  </div>
 
   <div id="scroll-track"></div>
 
@@ -291,128 +74,275 @@
       <span id="the-o" aria-label="o"></span>
       <span class="word" id="word-right">rlabs</span>
     </div>
-
     <div id="content">
-      <h1>Coming <span class="accent">Soon</span></h1>
-      <p class="sub">Strator&nbsp;Labs</p>
-      <p class="email"><span class="accent role">CEO</span> <a href="#" class="copy-email" data-email="taha@stratorlabs.com">taha@stratorlabs.com</a></p>
-      <p class="email"><span class="accent role">CTO</span> <a href="#" class="copy-email" data-email="tauqeer@stratorlabs.com">tauqeer@stratorlabs.com</a></p>
+      <div id="content-inner">
+        <h1>Coming <span class="accent">Soon</span></h1>
+        <p class="sub">Strator&nbsp;Labs</p>
+        <p class="email"><span class="accent role">CEO</span> <a href="#" class="copy-email" data-email="taha@stratorlabs.com">taha@stratorlabs.com</a></p>
+        <p class="email"><span class="accent role">CTO</span> <a href="#" class="copy-email" data-email="tauqeer@stratorlabs.com">tauqeer@stratorlabs.com</a></p>
+      </div>
     </div>
-
     <div id="toast">Copied!</div>
   </div>
 
-  <div id="rgb-frame"></div>
-
-  <div id="hint">
-    <span>Scroll</span>
-    <span class="chev"></span>
-  </div>
-
+  <div id="hint"><span>Scroll</span><span class="chev"></span></div>
   <footer>&copy; 2026 Strator Labs. All rights reserved.</footer>
 
 <script>
-  const track     = document.getElementById('scroll-track');
-  const theO      = document.getElementById('the-o');
-  const wordLeft  = document.getElementById('word-left');
-  const wordRight = document.getElementById('word-right');
-  const content   = document.getElementById('content');
-  const hint      = document.getElementById('hint');
-  const rgbFrame  = document.getElementById('rgb-frame');
-  const toast     = document.getElementById('toast');
+  const track=document.getElementById('scroll-track');
+  const theO=document.getElementById('the-o');
+  const wordLeft=document.getElementById('word-left');
+  const wordRight=document.getElementById('word-right');
+  const content=document.getElementById('content');
+  const contentInner=document.getElementById('content-inner');
+  const hint=document.getElementById('hint');
+  const toast=document.getElementById('toast');
 
-  // click-to-copy email with "Copied!" toast (works for all .copy-email links)
-  document.querySelectorAll('.copy-email').forEach((link) => {
-    link.addEventListener('click', (e) => {
+  document.querySelectorAll('.copy-email').forEach(link=>{
+    link.addEventListener('click',e=>{
       e.preventDefault();
-      const email = link.dataset.email;
-      const showToast = () => {
-        toast.classList.add('show');
-        clearTimeout(window.__toastTimer);
-        window.__toastTimer = setTimeout(() => toast.classList.remove('show'), 1600);
-      };
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(email).then(showToast).catch(() => {
-          fallbackCopy(email); showToast();
-        });
-      } else {
-        fallbackCopy(email); showToast();
-      }
+      const email=link.dataset.email;
+      const show=()=>{ toast.classList.add('show'); clearTimeout(window.__t); window.__t=setTimeout(()=>toast.classList.remove('show'),1600); };
+      if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(email).then(show).catch(()=>{fb(email);show();}); }
+      else { fb(email); show(); }
     });
   });
+  function fb(t){ const ta=document.createElement('textarea'); ta.value=t; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(e){} document.body.removeChild(ta); }
 
-  function fallbackCopy(text){
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); } catch (err) {}
-    document.body.removeChild(ta);
+  /* =================== CALM INTRO STARFIELD =================== */
+  const scC=document.getElementById('stars-calm'), scX=scC.getContext('2d');
+  let SCW,SCH,calmStars=[];
+  function scResize(){
+    SCW=scC.width=window.innerWidth; SCH=scC.height=window.innerHeight;
+    const n=Math.min(190,Math.floor(SCW*SCH/8000)); calmStars=[];
+    for(let i=0;i<n;i++) calmStars.push({x:Math.random()*SCW,y:Math.random()*SCH,r:Math.random()*1.3+0.2,tw:Math.random()*6.28,sp:Math.random()*0.02+0.005});
   }
 
-  // tune these to taste
-  const MAX_SCALE   = 30;    // how big the O grows before it leaves the screen
-  const SPLIT_DIST  = 0.6;   // how far the words slide apart (fraction of half-screen)
-  const FADE_START  = 0.5;   // content begins appearing at 50% scroll
-  const FRAME_START = 0.82;  // RGB border begins appearing near the very end
+  /* =================== SPACE SCENE (full screen, clipped to a circle in JS) =================== */
+  const spC=document.getElementById('space'), spX=spC.getContext('2d');
+  let CW,CH;
+  function spResize(){ CW=spC.width=window.innerWidth; CH=spC.height=window.innerHeight; spX.imageSmoothingEnabled=false; }
 
-  function clamp(v, a, b){ return Math.min(b, Math.max(a, v)); }
+  /* warp stars */
+  let warpStars=[];
+  function initWarp(){ warpStars=[]; const n=Math.min(360,Math.floor(CW*CH/5500)); for(let i=0;i<n;i++) warpStars.push(newWarpStar()); }
+  function newWarpStar(){ return { x:(Math.random()-0.5)*CW, y:(Math.random()-0.5)*CH, z:Math.random()*CW, pz:0 }; }
 
+  /* =================== OBJECT IMAGES =================== */
+  /* Put your transparent PNGs in an `objects/` folder next to index.html.
+     File names must match this list. 'sun' is treated as a light source. */
+  const OBJECT_FILES = [
+    { name:'sun',     file:'Objects/Sun.PNG',     light:true,  baseSize:300 },
+    { name:'earth',   file:'Objects/Earth.PNG',   light:false, baseSize:220 },
+    { name:'mars',    file:'Objects/mars.PNG',    light:false, baseSize:185 },
+    { name:'jupiter', file:'Objects/jupiter.png', light:false, baseSize:265 },
+    { name:'saturn',  file:'Objects/Saturn.PNG',  light:false, baseSize:300 },
+    { name:'neptune', file:'Objects/Neptune.PNG', light:false, baseSize:210 },
+    { name:'uranus',  file:'Objects/Uranus.PNG',  light:false, baseSize:210 },
+    { name:'pluto',   file:'Objects/pluto.PNG',   light:false, baseSize:160 },
+    { name:'mercury', file:'Objects/Mercury.PNG', light:false, baseSize:150 },
+    { name:'venus',   file:'Objects/Venus.PNG',   light:false, baseSize:185 }
+  ];
+  const objImgs=[]; let imagesReady=false, imagesLoaded=0;
+  OBJECT_FILES.forEach(def=>{
+    const img=new Image();
+    img.onload=()=>{ imagesLoaded++; if(imagesLoaded>=1) imagesReady=true; };
+    img.onerror=()=>{ /* missing file — skip silently */ };
+    img.src=def.file;
+    objImgs.push({def,img});
+  });
+
+  function rand(a,b){ return a+Math.random()*(b-a); }
+
+  /* =================== ONE-AT-A-TIME FLY OBJECTS =================== */
+  /* Only ONE big object travels at a time. A small "incoming" one waits
+     far away and only starts approaching once the current one has nearly
+     passed. Objects spawn AWAY from the screen center so they never cross
+     the content. Movement is very slow (5-7s to cross). */
+  let flies=[];                 // active objects (current + the next-far one)
+  let lightDir={x:-0.4,y:-0.4}, lightLevel=0, lightHue='255,210,150';
+
+  function pickObj(){ return objImgs[Math.floor(Math.random()*objImgs.length)]; }
+
+  function makeFly(initialFar){
+    const item=pickObj();
+    // spawn position OFF to a side/corner, away from center (so it never crosses text)
+    // choose an angle, but bias the radial offset to be large so it stays peripheral
+    const ang=rand(0,Math.PI*2);
+    const spread=rand(0.55,0.95);          // far from center
+    return {
+      item,
+      z: 1,                                 // far away (small)
+      ox: Math.cos(ang)*spread,
+      oy: Math.sin(ang)*spread,
+      flipX: Math.random()<0.5 ? -1 : 1,    // random horizontal invert
+      flipY: Math.random()<0.5 ? -1 : 1,    // random vertical invert
+      passed:false
+    };
+  }
+  function initFlies(){ flies=[ makeFly(true) ]; }
+
+  function projection(o){
+    const persp=1/(o.z*1.7+0.10);
+    const grow=0.4+objectScale*0.6;
+    const size=(o.item?o.item.def.baseSize:180)*persp*0.30*grow;
+    const cx=CW/2, cy=CH/2;
+    // objects drift outward (peripheral) as they near — kept away from center
+    const x=cx+o.ox*CW*persp*0.55;
+    const y=cy+o.oy*CH*persp*0.55;
+    return {x,y,size};
+  }
+  function drawFly(o){
+    if(!o.item || !o.item.img.complete || o.item.img.naturalWidth===0) return;
+    const p=projection(o); if(p.size<2)return;
+    const sz=p.size;
+    spX.save();
+    spX.translate(p.x,p.y);
+    spX.scale(o.flipX, o.flipY);   // random invert L/R + up/down
+    // soft glow behind the sun
+    if(o.item.def.light){
+      const g=spX.createRadialGradient(0,0,sz*0.2,0,0,sz*1.4);
+      g.addColorStop(0,'rgba(255,210,120,0.35)'); g.addColorStop(0.5,'rgba(255,140,50,0.15)'); g.addColorStop(1,'rgba(255,90,30,0)');
+      spX.fillStyle=g; spX.beginPath(); spX.arc(0,0,sz*1.4,0,6.283); spX.fill();
+    }
+    spX.imageSmoothingEnabled=false;   // keep the pixel look crisp
+    spX.drawImage(o.item.img, -sz/2, -sz/2, sz, sz);
+    spX.restore();
+  }
+
+  function updateLighting(){
+    const cx=CW/2, cy=CH/2; let best=null,bestScore=-1;
+    for(const o of flies){ if(!o.item || !o.item.def.light) continue;
+      const p=projection(o); const dx=p.x-cx, dy=p.y-cy, dist=Math.hypot(dx,dy);
+      const reach=p.size*1.8;
+      const prox=Math.max(0,1-dist/(reach+1)); const score=prox*(1-o.z*0.4);
+      if(score>bestScore){ bestScore=score; best={dx,dy,score,o}; } }
+    if(best&&best.score>0.02){ lightLevel=Math.min(1,best.score); const len=Math.hypot(best.dx,best.dy)||1; lightDir={x:best.dx/len,y:best.dy/len}; lightHue='255,210,150'; }
+    else lightLevel*=0.9;
+    const L=lightLevel*revealAmt;
+    const bright=1+L*0.7; const sx=-lightDir.x*16*L, sy=-lightDir.y*16*L;
+    contentInner.style.filter=`brightness(${bright.toFixed(3)})`;
+    contentInner.style.textShadow=`${sx.toFixed(1)}px ${sy.toFixed(1)}px ${(10+L*18).toFixed(1)}px rgba(0,0,0,${(0.4+L*0.4).toFixed(2)}),${(-sx*0.4).toFixed(1)}px ${(-sy*0.4).toFixed(1)}px ${(8+L*22).toFixed(1)}px rgba(${lightHue},${(L*0.55).toFixed(2)})`;
+  }
+
+  /* ---- circle clip geometry: center on the O, radius grows with the O scale ---- */
+  let oScale=1, spaceOpacity=0, revealAmt=0, objectScale=0;
+  let oCenter={x:0,y:0}, oBaseR=40;
+  function measureO(){
+    const r=theO.getBoundingClientRect();
+    oCenter={ x:r.left+r.width/2, y:r.top+r.height/2 };
+    oBaseR=r.width/2;   // base radius at scale 1 (getBoundingClientRect already reflects transform, so divide it out)
+    // r.width here includes the current scale, so normalize:
+    oBaseR = (r.width/ (oScale||1))/2;
+  }
+
+  let flash=0;
+  function frame(){
+    /* calm intro stars */
+    scX.clearRect(0,0,SCW,SCH);
+    for(const s of calmStars){ s.tw+=s.sp; const a=0.3+Math.sin(s.tw)*0.3; scX.beginPath(); scX.arc(s.x,s.y,s.r,0,6.283); scX.fillStyle=`rgba(210,220,235,${a})`; scX.fill(); }
+
+    spX.clearRect(0,0,CW,CH);
+
+    if(spaceOpacity>0.001){
+      /* clip everything to the O's circle (center + radius scaling with the O) */
+      const radius = oBaseR * oScale;
+      spX.save();
+      spX.beginPath();
+      spX.arc(oCenter.x, oCenter.y, radius, 0, 6.283);
+      spX.clip();
+
+      /* fill black inside circle */
+      spX.fillStyle='#000'; spX.fillRect(0,0,CW,CH);
+
+      /* warp stars (the streaking starfield flying toward the viewer) */
+      spX.save(); spX.translate(CW/2,CH/2);
+      const warpSpeed=0.45 + flash*1.3;
+      for(const s of warpStars){ s.pz=s.z; s.z-=warpSpeed; if(s.z<1){ Object.assign(s,newWarpStar()); s.z=CW; s.pz=s.z; continue; }
+        const k=128/s.z, kp=128/s.pz; const x=s.x*k, y=s.y*k, px=s.x*kp, py=s.y*kp;
+        const a=Math.min(1,(CW-s.z)/CW*1.2); spX.strokeStyle=`rgba(210,222,240,${a})`; spX.lineWidth=Math.max(0.5,(1-s.z/CW)*1.8);
+        spX.beginPath(); spX.moveTo(px,py); spX.lineTo(x,y); spX.stroke(); }
+      spX.restore();
+
+      /* ===== ONE-AT-A-TIME OBJECTS, VERY SLOW ===== */
+      /* z goes 1 (far/small) -> 0 (near/passed). VERY_SLOW makes a full pass
+         take ~5-7s. A new far object is only added once the current one has
+         nearly passed (z < SPAWN_AT). Never more than 2 (current + incoming). */
+      if(imagesReady){
+        const VERY_SLOW = 0.0011 + flash*0.0006;   // ~6s to cross at 60fps
+        const SPAWN_AT  = 0.45;                     // add next when current is ~halfway-near
+
+        for(let i=flies.length-1;i>=0;i--){
+          const o=flies[i];
+          o.z -= VERY_SLOW*(0.7+(1-o.z)*0.6);
+          if(o.z<=0.04){ flies.splice(i,1); continue; }
+        }
+        // spawn the incoming far object once the front one has neared enough,
+        // and only if there's just one on screen (true one-by-one feel)
+        const nearest = flies.length? Math.min(...flies.map(f=>f.z)) : 1;
+        if(flies.length<2 && nearest < SPAWN_AT){ flies.push(makeFly(false)); }
+        if(flies.length===0){ flies.push(makeFly(false)); }
+
+        flies.sort((a,b)=>b.z-a.z);  // far first
+        for(const o of flies) drawFly(o);
+      }
+
+      spX.restore();
+    }
+
+    updateLighting();
+    requestAnimationFrame(frame);
+  }
+
+  scResize(); spResize(); initWarp(); initFlies();
+  window.addEventListener('resize',()=>{ scResize(); spResize(); initWarp(); measureO(); });
+  frame();
+
+  /* scroll driver */
+  const MAX_SCALE=30, SPLIT_DIST=0.6, FADE_START=0.5;
+  function clamp(v,a,b){ return Math.min(b,Math.max(a,v)); }
   function update(){
-    const scrollable = track.offsetHeight - window.innerHeight;
-    const p = scrollable > 0 ? clamp(window.scrollY / scrollable, 0, 1) : 0;
+    const scrollable=track.offsetHeight-window.innerHeight;
+    const p=scrollable>0?clamp(window.scrollY/scrollable,0,1):0;
+    const halfW=window.innerWidth/2; flash=p;
 
-    const halfW = window.innerWidth / 2;
+    const slide=Math.pow(p,1.2)*halfW*SPLIT_DIST;
+    wordLeft.style.transform=`translateX(${-slide}px)`;
+    wordRight.style.transform=`translateX(${slide}px)`;
+    const wOp=clamp(1-(p/0.7),0,1); wordLeft.style.opacity=wOp; wordRight.style.opacity=wOp;
 
-    // words split apart: strat -> left, rlabs -> right
-    const slide = Math.pow(p, 1.2) * halfW * SPLIT_DIST;
-    wordLeft.style.transform  = `translateX(${-slide}px)`;
-    wordRight.style.transform = `translateX(${ slide}px)`;
+    oScale=1+Math.pow(p,1.7)*(MAX_SCALE-1);
+    theO.style.transform=`scale(${oScale})`;
+    theO.style.opacity=p<0.85?1:clamp(1-(p-0.85)/0.12,0,1);
 
-    // words fade as they leave
-    const wordOpacity = clamp(1 - (p / 0.7), 0, 1);
-    wordLeft.style.opacity  = wordOpacity;
-    wordRight.style.opacity = wordOpacity;
+    /* space fades in as you scroll (gated to scroll progress) */
+    spaceOpacity = clamp((p-0.03)/0.12, 0, 1);
+    spC.style.opacity = spaceOpacity;
 
-    // O grows through the gap, then fades out right at the end so no harsh glow lingers
-    const scale = 1 + (Math.pow(p, 1.7)) * (MAX_SCALE - 1);
-    theO.style.transform = `scale(${scale})`;
-    // fade the O out over the last stretch so the bright red doesn't sit on screen
-    const oOpacity = p < 0.8 ? 1 : clamp(1 - (p - 0.8) / 0.15, 0, 1);
-    theO.style.opacity = oOpacity;
+    /* reveal amount = how much the O circle fills the screen (for content lighting) */
+    revealAmt = clamp((p-0.5)/0.4, 0, 1);
 
-    // content fades in through the back half
-    let c = 0;
-    if (p > FADE_START){
-      c = clamp((p - FADE_START) / (1 - FADE_START), 0, 1);
-    }
+    /* objectScale: everything (content + planets) starts small ~10% scroll and
+       grows as you scroll down. Used by both the content and the fly objects. */
+    objectScale = clamp((p-0.10)/0.55, 0, 1);   // 0 at <=10% -> 1 by ~65%
+
+    measureO();   /* recompute O center+radius each scroll for accurate clip */
+
+    /* content opacity SYNCED to the space reveal (same curve as spaceOpacity but
+       biased so text appears as the circle is opening up around it) */
+    const c = clamp((p-0.40)/0.30, 0, 1);
     content.style.opacity = c;
-    content.style.pointerEvents = c > 0.4 ? 'auto' : 'none';
-    content.style.transform = `scale(${0.92 + c * 0.08})`;
+    content.style.pointerEvents = c>0.4 ? 'auto' : 'none';
+    /* content grows from small to full as you scroll */
+    const cs = 0.35 + objectScale*0.65;   // 0.35x small -> 1x full
+    content.style.transform = `scale(${cs.toFixed(3)})`;
 
-    // RGB edge frame fades in only at the very end, after the O is gone
-    let f = 0;
-    if (p > FRAME_START){
-      f = clamp((p - FRAME_START) / (1 - FRAME_START), 0, 1);
-    }
-    rgbFrame.style.opacity = f;
-
-    // hide scroll hint once we start moving
-    hint.style.opacity = p > 0.04 ? 0 : 1;
+    hint.style.opacity=p>0.04?0:1;
   }
-
-  let ticking = false;
-  window.addEventListener('scroll', () => {
-    if (!ticking){
-      requestAnimationFrame(() => { update(); ticking = false; });
-      ticking = true;
-    }
-  }, { passive: true });
-
-  window.addEventListener('resize', update);
-  window.addEventListener('load', update);
+  let ticking=false;
+  window.addEventListener('scroll',()=>{ if(!ticking){ requestAnimationFrame(()=>{update();ticking=false;}); ticking=true; }},{passive:true});
+  window.addEventListener('resize',update);
+  window.addEventListener('load',update);
   update();
 </script>
 </body>
